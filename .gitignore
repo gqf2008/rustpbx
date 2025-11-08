@@ -27,3 +27,6 @@ cdr/
 *.sqlite3
 *.generated.toml
 *.bak
+/mediacache
+*.txt
+/recorder

@@ -31,6 +31,7 @@ pub fn router(app_state: AppState) -> Router<AppState> {
         .nest("/llm/v1", super::llmproxy::router())
         .route("/iceservers", get(super::webrtc::get_iceservers))
         .route("/health", get(super::ami::health_handler))
+        .route("/healthz", get(super::ami::healthz_handler))
         .nest("/ami/v1", super::ami::router(app_state))
 }
 

@@ -207,7 +207,7 @@ async fn test_stream_forward_packets() -> Result<()> {
     let packet = AudioFrame {
         track_id: track2_id.clone(),
         timestamp: 1000,
-        samples: Samples::PCM { samples: samples },
+        samples: Samples::PCM { samples },
         sample_rate: 16000,
     };
 

@@ -61,8 +61,8 @@ impl InvitationHandler for WebhookInvitationHandler {
             "headers": headers,
             "offer": String::from_utf8_lossy(invite_request.body()),
         });
-        // TODO: better load balancing strategy
-        // just use round-robin for now
+        
+        // Round-robin load balancing across webhook URLs
         let idx = routing_state.next_round_robin_index("useragent_webhook", self.urls.len());
         let url = match self.urls.get(idx) {
             Some(u) => u,

@@ -29,6 +29,12 @@ pub fn router(app_state: AppState) -> Router<AppState> {
         ))
 }
 
+/// Simple health check endpoint for Kubernetes/Docker liveness/readiness probes
+/// Returns 200 OK if the service is running
+pub(super) async fn healthz_handler() -> Response {
+    StatusCode::OK.into_response()
+}
+
 pub(super) async fn health_handler(State(state): State<AppState>) -> Response {
     let ua_stats = match state.useragent {
         Some(ref ua) => {
