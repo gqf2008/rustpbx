@@ -1,0 +1,111 @@
+# A example config file
+# mv config.toml.example config.toml
+# cargo run . --bin rustpbx --conf config.toml
+
+http_addr = "0.0.0.0:8080"
+log_level = "debug"
+#log_file = "/tmp/rustpbx.log"
+recorder_path = "/tmp/recorders"
+# recorder_format can be "wav" (default) or "ogg" (requires enabling the 'opus' feature)
+recorder_format = "ogg"
+media_cache_path = "/tmp/mediacache"
+database_url = "sqlite://rustpbx.sqlite3"
+
+# external IP address for SIP signaling and media
+# if server is behind NAT, set your public IP here (without port)
+# external_ip = "1.2.3.4"
+
+# rtp_start_port = 20000
+# rtp_end_port = 30000
+
+# setup your STUN/TURN servers here, for webrtc web clients
+# [[ice_servers]]
+# urls = ["stun:stun.l.google.com:19302"]
+
+# [[ice_servers]]
+# urls = ["turn:restsend.com:3478"]
+# username = "user"
+# credential = "pass"
+
+[console]
+#session_secret = "please_change_me_to_a_random_secret"
+base_path = "/console"
+# allow self-service administrator signup after the first account
+allow_registration = false
+
+[ua]
+addr="0.0.0.0"
+udp_port=13050 # don't use 5060
+
+
+[proxy]
+modules = ["acl", "auth", "registrar", "call"]
+addr = "0.0.0.0"
+udp_port = 15060
+registrar_expires = 60
+ws_handler= "/ws"
+media_proxy = "auto"
+# Base directory for generated routing/trunk/ACL files
+generated_dir = "./config"
+routes_files = ["config/routes/*.toml"]
+trunks_files = ["config/trunks/*.toml"]
+
+[proxy.transcript]
+command = "sensevoice-cli"
+# models_path = "/var/lib/sensevoice"
+# hf_endpoint = "https://huggingface.co"
+# extra_args = ["--format", "json"]
+# model = "medium"
+# samplerate = 16000
+# default_language = "zh"
+# timeout_secs = 60
+
+# ACL rules
+acl_rules = [
+    # "allow 10.0.0.0/8",
+    # "deny 0.123.4.0/16",
+    "allow all",
+    "deny all"
+]
+acl_files = ["config/acl/*.toml"]
+
+[ua.handler]
+type = "webhook"
+url = "http://localhost:8090/webhook"
+method = "POST"
+
+[[proxy.user_backends]]
+type = "memory"
+users = [
+    { username = "bob", password = "123456" },
+    { username = "alice", password = "123456" },
+]
+
+[[proxy.user_backends]]
+type = "extension"
+database_url = "sqlite://rustpbx.sqlite3"
+
+[callrecord]
+type = "local"
+root = "/tmp/cdr"
+
+[recording]
+enabled = true
+auto_start = true
+
+# [proxy.trunks.wuhoo]
+# dest = "sip:123.456.789.00:1234"
+
+# [[proxy.routes]]
+# name = "default"
+# priority = 1
+# dest = "wuhoo"
+
+# [proxy.routes.match]
+# "to.user" = "^\\+.*"
+
+# [proxy.routes.rewrite]
+# "to.user" = "+{1}"
+# "to.host" = "123.456.789.00:1234"
+# "from.user" = "12345"
+# "from.host" = "123.456.789.00:1234"

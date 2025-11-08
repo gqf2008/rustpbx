@@ -52,7 +52,9 @@ pub fn create_decoder(codec: CodecType) -> Box<dyn Decoder> {
         #[cfg(feature = "g729")]
         CodecType::G729 => Box::new(g729::G729Decoder::new()),
         #[cfg(feature = "opus")]
-        CodecType::Opus => Box::new(opus::OpusDecoder::new_default()),
+        CodecType::Opus => Box::new(
+            opus::OpusDecoder::new_default().expect("Failed to create Opus decoder"),
+        ),
         CodecType::TelephoneEvent => Box::new(telephone_event::TelephoneEventDecoder::new()),
     }
 }
@@ -65,7 +67,9 @@ pub fn create_encoder(codec: CodecType) -> Box<dyn Encoder> {
         #[cfg(feature = "g729")]
         CodecType::G729 => Box::new(g729::G729Encoder::new()),
         #[cfg(feature = "opus")]
-        CodecType::Opus => Box::new(opus::OpusEncoder::new_default()),
+        CodecType::Opus => Box::new(
+            opus::OpusEncoder::new_default().expect("Failed to create Opus encoder"),
+        ),
         CodecType::TelephoneEvent => Box::new(telephone_event::TelephoneEventEncoder::new()),
     }
 }

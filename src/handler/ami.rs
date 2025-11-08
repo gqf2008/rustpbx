@@ -80,7 +80,7 @@ pub(super) async fn health_handler(State(state): State<AppState>) -> Response {
         "failed": state.total_failed_calls.load(Ordering::Relaxed),
         "useragent": ua_stats,
         "sipserver": sipserver_stats,
-        "runnings": state.active_calls.lock().unwrap().len(),
+        "runnings": state.active_calls.lock().expect("Failed to lock mutex").len(),
     });
     Json(health).into_response()
 }
@@ -92,7 +92,7 @@ async fn shutdown_handler(State(state): State<AppState>, client_ip: ClientAddr) 
 }
 
 async fn list_calls(State(state): State<AppState>) -> Response {
-    let active_calls = state.active_calls.lock().unwrap();
+    let active_calls = state.active_calls.lock().expect("Failed to lock mutex");
     let result = serde_json::json!({
         "total": active_calls.len(),
         "calls": active_calls.iter().map(|(id, call)| {
@@ -159,7 +159,7 @@ async fn kill_call(
     Path(id): Path<String>,
     client_ip: ClientAddr,
 ) -> Response {
-    if let Some(call) = state.active_calls.lock().unwrap().remove(&id) {
+    if let Some(call) = state.active_calls.lock().expect("Failed to lock mutex").remove(&id) {
         call.cancel_token.cancel();
         info!(id, %client_ip, "call killed");
     }

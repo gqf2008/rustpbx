@@ -47,26 +47,26 @@ impl ProcessorChain {
         }
     }
     pub fn insert_processor(&mut self, processor: Box<dyn Processor>) {
-        self.processors.lock().unwrap().insert(0, processor);
+        self.processors.lock().expect("Failed to lock mutex").insert(0, processor);
     }
     pub fn append_processor(&mut self, processor: Box<dyn Processor>) {
-        self.processors.lock().unwrap().push(processor);
+        self.processors.lock().expect("Failed to lock mutex").push(processor);
     }
 
     pub fn has_processor<T: 'static>(&self) -> bool {
-        let processors = self.processors.lock().unwrap();
+        let processors = self.processors.lock().expect("Failed to lock mutex");
         processors
             .iter()
             .any(|processor| (processor.as_ref() as &dyn Any).is::<T>())
     }
 
     pub fn remove_processor<T: 'static>(&self) {
-        let mut processors = self.processors.lock().unwrap();
+        let mut processors = self.processors.lock().expect("Failed to lock mutex");
         processors.retain(|processor| !(processor.as_ref() as &dyn Any).is::<T>());
     }
 
     pub fn process_frame(&self, frame: &mut AudioFrame) -> Result<()> {
-        let processors = self.processors.lock().unwrap();
+        let processors = self.processors.lock().expect("Failed to lock mutex");
         if !self.force_decode && processors.is_empty() {
             return Ok(());
         }

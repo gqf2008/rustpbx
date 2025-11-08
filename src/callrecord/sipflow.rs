@@ -24,7 +24,7 @@ pub struct SipMessageItem {
     pub content: String,
 }
 
-pub(self) struct SipFlowInner {
+struct SipFlowInner {
     inspectors: Vec<Box<dyn MessageInspector>>,
     messages: Mutex<LruCache<String, Vec<SipMessageItem>>>,
 }

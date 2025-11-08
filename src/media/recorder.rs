@@ -24,7 +24,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 #[cfg(feature = "opus")]
-use opus::{Application, Channels, Encoder};
+use audiopus::{coder::Encoder, Application, Channels, SampleRate};
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -50,8 +50,17 @@ impl OggStreamWriter {
             _ => 16000,
         };
 
-        let encoder = Encoder::new(normalized, Channels::Stereo, Application::Audio)
-            .map_err(|e| anyhow!("Failed to create Opus encoder: {e}"))?;
+        let sample_rate_enum = match normalized {
+            8000 => SampleRate::Hz8000,
+            12000 => SampleRate::Hz12000,
+            16000 => SampleRate::Hz16000,
+            24000 => SampleRate::Hz24000,
+            48000 => SampleRate::Hz48000,
+            _ => SampleRate::Hz16000,
+        };
+
+        let encoder = Encoder::new(sample_rate_enum, Channels::Stereo, Application::Audio)
+            .map_err(|e| anyhow!("Failed to create Opus encoder: {:?}", e))?;
 
         let mut serial = rand::random::<u32>();
         if serial == 0 {
@@ -562,7 +571,10 @@ impl Recorder {
 
     /// Get or assign channel index for a track
     fn get_channel_index(&self, track_id: &str) -> usize {
-        let mut channels = self.channels.lock().unwrap();
+        let mut channels = self
+            .channels
+            .lock()
+            .expect("Failed to lock channels mutex");
         if let Some(&channel_idx) = channels.get(track_id) {
             channel_idx % 2
         } else {
@@ -595,11 +607,17 @@ impl Recorder {
         // Add to appropriate buffer
         match channel_idx {
             0 => {
-                let mut mono_buf = self.mono_buf.lock().unwrap();
+                let mut mono_buf = self
+                    .mono_buf
+                    .lock()
+                    .expect("Failed to lock mono_buf mutex");
                 mono_buf.extend(buffer.iter());
             }
             1 => {
-                let mut stereo_buf = self.stereo_buf.lock().unwrap();
+                let mut stereo_buf = self
+                    .stereo_buf
+                    .lock()
+                    .expect("Failed to lock stereo_buf mutex");
                 stereo_buf.extend(buffer.iter());
             }
             _ => {}
@@ -619,8 +637,14 @@ impl Recorder {
     }
 
     async fn pop(&self, chunk_size: usize) -> (PcmBuf, PcmBuf) {
-        let mut mono_buf = self.mono_buf.lock().unwrap();
-        let mut stereo_buf = self.stereo_buf.lock().unwrap();
+        let mut mono_buf = self
+            .mono_buf
+            .lock()
+            .expect("Failed to lock mono_buf mutex");
+        let mut stereo_buf = self
+            .stereo_buf
+            .lock()
+            .expect("Failed to lock stereo_buf mutex");
 
         // Limit chunk_size to prevent capacity overflow
         let safe_chunk_size = chunk_size.min(16000 * 10); // Max 10 seconds at 16kHz

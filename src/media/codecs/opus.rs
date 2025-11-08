@@ -1,6 +1,10 @@
 use super::{Decoder, Encoder};
 use crate::{PcmBuf, Sample};
-use opus::{Application, Channels, Decoder as OpusDecoderCore, Encoder as OpusEncoderCore};
+use anyhow::Result;
+use audiopus::{
+    coder::Decoder as OpusDecoderCore, coder::Encoder as OpusEncoderCore, Application, Channels,
+    SampleRate,
+};
 
 /// Opus audio decoder
 pub struct OpusDecoder {
@@ -11,21 +15,26 @@ pub struct OpusDecoder {
 
 impl OpusDecoder {
     /// Create a new Opus decoder instance
-    pub fn new(sample_rate: u32, channels: u16) -> Self {
+    pub fn new(sample_rate: u32, channels: u16) -> Result<Self> {
         let channels = if channels == 1 {
             Channels::Mono
         } else {
             Channels::Stereo
         };
 
-        let decoder = match OpusDecoderCore::new(sample_rate, channels) {
-            Ok(decoder) => decoder,
-            Err(e) => {
-                panic!("Failed to create Opus decoder: {}", e);
-            }
+        let sample_rate_enum = match sample_rate {
+            8000 => SampleRate::Hz8000,
+            12000 => SampleRate::Hz12000,
+            16000 => SampleRate::Hz16000,
+            24000 => SampleRate::Hz24000,
+            48000 => SampleRate::Hz48000,
+            _ => SampleRate::Hz48000, // Default to 48kHz
         };
 
-        Self {
+        let decoder = OpusDecoderCore::new(sample_rate_enum, channels)
+            .map_err(|e| anyhow::anyhow!("Failed to create Opus decoder: {:?}", e))?;
+
+        Ok(Self {
             decoder,
             sample_rate,
             channels: if matches!(channels, Channels::Mono) {
@@ -33,15 +42,22 @@ impl OpusDecoder {
             } else {
                 2
             },
-        }
+        })
     }
 
     /// Create a default Opus decoder (48kHz, stereo)
-    pub fn new_default() -> Self {
+    pub fn new_default() -> Result<Self> {
         Self::new(48000, 2)
     }
 }
 
+// SAFETY: OpusDecoder wraps audiopus::coder::Decoder which internally uses
+// audiopus_sys::OpusDecoder (a raw pointer to the C library's decoder state).
+// The underlying libopus C library is thread-safe for decoder operations as long as:
+// 1. Each decoder instance is only accessed by one thread at a time (guaranteed by &mut self)
+// 2. The decoder state is not shared across threads without synchronization
+// We implement Send because the decoder can be safely moved between threads.
+// We implement Sync because &OpusDecoder doesn't allow mutation without interior mutability.
 unsafe impl Send for OpusDecoder {}
 unsafe impl Sync for OpusDecoder {}
 
@@ -52,7 +68,7 @@ impl Decoder for OpusDecoder {
         let max_samples = 11520;
         let mut output = vec![0i16; max_samples];
 
-        match self.decoder.decode(data, &mut output, false) {
+        match self.decoder.decode(Some(data), &mut output, false) {
             Ok(len) => {
                 let total_samples = len * self.channels as usize;
                 output.truncate(total_samples);
@@ -89,29 +105,34 @@ pub struct OpusEncoder {
 
 impl OpusEncoder {
     /// Create a new Opus encoder instance
-    pub fn new(sample_rate: u32, channels: u16) -> Self {
+    pub fn new(sample_rate: u32, channels: u16) -> Result<Self> {
         let channels_enum = if channels == 1 {
             Channels::Mono
         } else {
             Channels::Stereo
         };
 
-        let encoder = match OpusEncoderCore::new(sample_rate, channels_enum, Application::Voip) {
-            Ok(encoder) => encoder,
-            Err(e) => {
-                panic!("Failed to create Opus encoder: {}", e);
-            }
+        let sample_rate_enum = match sample_rate {
+            8000 => SampleRate::Hz8000,
+            12000 => SampleRate::Hz12000,
+            16000 => SampleRate::Hz16000,
+            24000 => SampleRate::Hz24000,
+            48000 => SampleRate::Hz48000,
+            _ => SampleRate::Hz48000, // Default to 48kHz
         };
 
-        Self {
+        let encoder = OpusEncoderCore::new(sample_rate_enum, channels_enum, Application::Voip)
+            .map_err(|e| anyhow::anyhow!("Failed to create Opus encoder: {:?}", e))?;
+
+        Ok(Self {
             encoder,
             sample_rate,
             channels,
-        }
+        })
     }
 
     /// Create a default Opus encoder (48kHz, stereo)
-    pub fn new_default() -> Self {
+    pub fn new_default() -> Result<Self> {
         Self::new(48000, 2)
     }
 
@@ -130,6 +151,13 @@ impl OpusEncoder {
     }
 }
 
+// SAFETY: OpusEncoder wraps audiopus::coder::Encoder which internally uses
+// audiopus_sys::OpusEncoder (a raw pointer to the C library's encoder state).
+// The underlying libopus C library is thread-safe for encoder operations as long as:
+// 1. Each encoder instance is only accessed by one thread at a time (guaranteed by &mut self)
+// 2. The encoder state is not shared across threads without synchronization
+// We implement Send because the encoder can be safely moved between threads.
+// We implement Sync because &OpusEncoder doesn't allow mutation without interior mutability.
 unsafe impl Send for OpusEncoder {}
 unsafe impl Sync for OpusEncoder {}
 

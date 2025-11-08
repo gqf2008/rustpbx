@@ -89,7 +89,7 @@ impl TrackCodec {
             111 => {
                 let mut opus_decoder = self.opus_decoder.borrow_mut();
                 if opus_decoder.is_none() {
-                    *opus_decoder = Some(OpusDecoder::new_default());
+                    *opus_decoder = OpusDecoder::new_default().ok();
                 }
                 if let Some(ref mut decoder) = opus_decoder.as_mut() {
                     decoder.decode(payload)
@@ -159,7 +159,7 @@ impl TrackCodec {
                     111 => {
                         let mut opus_encoder = self.opus_encoder.borrow_mut();
                         if opus_encoder.is_none() {
-                            *opus_encoder = Some(OpusEncoder::new_default());
+                            *opus_encoder = OpusEncoder::new_default().ok();
                         }
                         if let Some(ref mut encoder) = opus_encoder.as_mut() {
                             encoder.encode(&pcm)

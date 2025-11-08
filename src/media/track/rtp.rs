@@ -439,11 +439,11 @@ impl RtpTrack {
     }
 
     pub fn remote_description(&self) -> Option<String> {
-        self.inner.lock().unwrap().remote_description.clone()
+        self.inner.lock().expect("Failed to lock RTP track mutex").remote_description.clone()
     }
 
     pub fn set_remote_description(&self, answer: &str) -> Result<()> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().expect("Failed to lock RTP track mutex");
         let mut reader = Cursor::new(answer);
         let sdp = SessionDescription::unmarshal(&mut reader)?;
         let peer_media = match select_peer_media(&sdp, "audio") {
@@ -559,7 +559,7 @@ impl RtpTrack {
             protos: vec!["RTP".to_string(), "AVP".to_string()],
             formats: vec![],
         };
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().expect("Failed to lock RTP track mutex");
         for codec in inner.enabled_codecs.iter() {
             media
                 .media_name
@@ -633,7 +633,7 @@ impl RtpTrack {
             "D" => 15,
             _ => return Err(anyhow::anyhow!("Invalid DTMF digit")),
         };
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().expect("Failed to lock RTP track mutex");
         let socket = &self.rtp_socket;
         let remote_addr = match inner.remote_addr.as_ref() {
             Some(addr) => addr.clone(),
@@ -675,7 +675,7 @@ impl RtpTrack {
             payload[2] = ((event_duration >> 8) & 0xFF) as u8;
             payload[3] = (event_duration & 0xFF) as u8;
 
-            let packets = match inner.packetizer.lock().unwrap().as_mut() {
+            let packets = match inner.packetizer.lock().expect("Failed to lock RTP track mutex").as_mut() {
                 Some(p) => p.packetize(&Bytes::from_owner(payload), samples_per_packet)?,
                 None => return Err(anyhow::anyhow!("Packetizer not set")),
             };
@@ -873,7 +873,7 @@ impl RtpTrack {
         let mut buf = vec![0u8; RTP_MTU];
         let mut send_ticker = tokio::time::interval(ptime);
         let mut jitter = JitterBuffer::new();
-        let stats = inner.lock().unwrap().stats.clone();
+        let stats = inner.lock().expect("Failed to lock RTP track mutex").stats.clone();
 
         loop {
             select! {
@@ -964,7 +964,7 @@ impl RtpTrack {
         track_id: &TrackId,
         reason: &'static str,
     ) -> bool {
-        let mut guard = inner.lock().unwrap();
+        let mut guard = inner.lock().expect("Failed to lock RTP track mutex");
         let src_ip = Self::sip_addr_ip(src_addr);
 
         let should_update = if force {
@@ -1035,7 +1035,7 @@ impl RtpTrack {
             Instant::now() + Duration::from_millis(RTCP_SR_INTERVAL_MS),
             Duration::from_millis(RTCP_SR_INTERVAL_MS),
         );
-        let stats = inner.lock().unwrap().stats.clone();
+        let stats = inner.lock().expect("Failed to lock RTP track mutex").stats.clone();
         let mut last_sent_octets = stats.octet_count.load(Ordering::Relaxed);
         let mut last_recv_octets = stats.received_octets.load(Ordering::Relaxed);
         let mut last_rate_instant = Instant::now();
@@ -1135,7 +1135,7 @@ impl RtpTrack {
                     }
 
                     let rtcp_data = webrtc::rtcp::packet::marshal(&pkts)?;
-                    let remote_rtcp_addr = inner.lock().unwrap().remote_rtcp_addr.clone();
+                    let remote_rtcp_addr = inner.lock().expect("Failed to lock RTP track mutex").remote_rtcp_addr.clone();
                     match remote_rtcp_addr{
                         Some(ref addr) => {
                             if let Err(e) = rtcp_socket.send_raw(&rtcp_data, addr).await {
@@ -1151,8 +1151,8 @@ impl RtpTrack {
     }
 
     async fn try_ice_connectivity_check(&self) {
-        let remote_addr = self.inner.lock().unwrap().remote_addr.clone();
-        let remote_rtcp_addr = self.inner.lock().unwrap().remote_rtcp_addr.clone();
+        let remote_addr = self.inner.lock().expect("Failed to lock RTP track mutex").remote_addr.clone();
+        let remote_rtcp_addr = self.inner.lock().expect("Failed to lock RTP track mutex").remote_rtcp_addr.clone();
 
         if let Some(ref addr) = remote_addr {
             Self::send_ice_connectivity_check(&self.rtp_socket, addr)
@@ -1239,7 +1239,7 @@ impl Track for RtpTrack {
                 ) => {
                 }
             };
-            let remote_rtcp_addr = inner.lock().unwrap().remote_rtcp_addr.clone();
+            let remote_rtcp_addr = inner.lock().expect("Failed to lock RTP track mutex").remote_rtcp_addr.clone();
             // send rtcp bye packet
             match remote_rtcp_addr {
                 Some(ref addr) => {
@@ -1277,15 +1277,15 @@ impl Track for RtpTrack {
     }
 
     async fn send_packet(&self, packet: &AudioFrame) -> Result<()> {
-        let remote_addr = match self.inner.lock().unwrap().remote_addr.clone() {
+        let remote_addr = match self.inner.lock().expect("Failed to lock RTP track mutex").remote_addr.clone() {
             Some(addr) => addr,
             None => return Ok(()),
         };
-        let stats = self.inner.lock().unwrap().stats.clone();
+        let stats = self.inner.lock().expect("Failed to lock RTP track mutex").stats.clone();
 
         let (payload_type, payload) = self
             .encoder
-            .encode(self.inner.lock().unwrap().payload_type, packet.clone());
+            .encode(self.inner.lock().expect("Failed to lock RTP track mutex").payload_type, packet.clone());
         if payload.is_empty() {
             return Ok(());
         }
@@ -1462,7 +1462,7 @@ a=fmtp:101 0-16"#;
         rtp_track
             .set_remote_description(sdp)
             .expect("Failed to set remote description");
-        let inner = rtp_track.inner.lock().unwrap();
+        let inner = rtp_track.inner.lock().expect("Failed to lock RTP track mutex");
         assert_eq!(inner.payload_type, 9);
         assert!(!inner.rtcp_mux); // RTCP is on separate port
     }
@@ -1531,7 +1531,7 @@ a=rtcp-fb:* ccm tmmbr"#;
         // SSRC is randomly generated in build(), so we can't predict exact value
         assert_ne!(track.ssrc, 0); // Should not be zero
         assert_eq!(track.ssrc_cname, "test_session");
-        let inner = track.inner.lock().unwrap();
+        let inner = track.inner.lock().expect("Failed to lock RTP track mutex");
         assert!(inner.rtcp_mux);
     }
 
@@ -1682,7 +1682,7 @@ t=0 0"#;
             .build()
             .await
             .expect("Failed to build track");
-        let inner = track.inner.lock().unwrap();
+        let inner = track.inner.lock().expect("Failed to lock RTP track mutex");
         // Verify stats are properly initialized
         assert_eq!(inner.stats.packet_count.load(Ordering::Relaxed), 0);
         assert_eq!(inner.stats.octet_count.load(Ordering::Relaxed), 0);

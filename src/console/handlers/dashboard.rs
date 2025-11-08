@@ -332,7 +332,7 @@ async fn active_call_stats(state: &ConsoleState, limit: usize) -> Vec<ActiveCall
         return Vec::new();
     };
 
-    let call_map = app_state.active_calls.lock().unwrap();
+    let call_map = app_state.active_calls.lock().expect("Failed to lock mutex");
     let mut entries: Vec<(DateTime<Utc>, ActiveCallRef)> = Vec::with_capacity(call_map.len());
     for call in call_map.values() {
         if let Ok(state_guard) = call.call_state.read() {

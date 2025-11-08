@@ -551,7 +551,7 @@ impl ProxyModule for RegistrarModule {
             }
 
             let mut headers = Vec::new();
-            if let Some(allows) = tx.endpoint_inner.allows.lock().unwrap().as_ref() {
+            if let Some(allows) = tx.endpoint_inner.allows.lock().expect("Failed to lock mutex").as_ref() {
                 if !allows.is_empty() {
                     headers.push(rsip::Header::Allow(
                         allows
@@ -649,7 +649,7 @@ impl ProxyModule for RegistrarModule {
             response_headers.push(Header::Other("Contact".into(), rendered_contact.into()));
         }
 
-        if let Some(allows) = tx.endpoint_inner.allows.lock().unwrap().as_ref() {
+        if let Some(allows) = tx.endpoint_inner.allows.lock().expect("Failed to lock mutex").as_ref() {
             if !allows.is_empty() {
                 response_headers.push(Header::Allow(
                     allows

@@ -87,7 +87,7 @@ impl Track for WebsocketTrack {
     ) -> Result<()> {
         let track_id = self.track_id.clone();
         let token = self.cancel_token.clone();
-        let mut audio_from_ws = match self.rx.lock().unwrap().take() {
+        let mut audio_from_ws = match self.rx.lock().expect("Failed to lock mutex").take() {
             Some(rx) => rx,
             None => {
                 warn!(track_id, "no audio from ws");

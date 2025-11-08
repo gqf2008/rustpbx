@@ -41,7 +41,7 @@ where
     }
 
     pub fn pop_or_create(&self) -> Result<T> {
-        let mut guard = self.items.lock().unwrap();
+        let mut guard = self.items.lock().expect("Failed to lock mutex");
         match guard.pop() {
             Some(item) => Ok(item),
             None => (self.factory)(),
@@ -49,7 +49,7 @@ where
     }
 
     pub fn push(&self, item: T) {
-        let mut guard = self.items.lock().unwrap();
+        let mut guard = self.items.lock().expect("Failed to lock mutex");
         if guard.len() < self.max_items {
             guard.push(item);
             return;

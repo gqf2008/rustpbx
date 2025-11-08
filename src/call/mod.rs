@@ -688,7 +688,7 @@ impl RoutingState {
             return 0;
         }
 
-        let mut counters = self.round_robin_counters.lock().unwrap();
+        let mut counters = self.round_robin_counters.lock().expect("Failed to lock mutex");
         let counter = counters
             .entry(destination_key.to_string())
             .or_insert_with(|| 0);

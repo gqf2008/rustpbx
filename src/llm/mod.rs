@@ -315,7 +315,7 @@ impl OpenAiClient {
                                 .unwrap_or_default();
 
                             if !content.is_empty() {
-                                full_content_clone.lock().unwrap().push_str(&content);
+                                full_content_clone.lock().expect("Failed to lock mutex").push_str(&content);
                                 Ok(LlmContent::Delta(content))
                             } else {
                                 // Skip empty content
@@ -338,7 +338,7 @@ impl OpenAiClient {
 
             // Add the final message at the end
             let final_stream = content_stream.chain(stream::once(async move {
-                Ok(LlmContent::Final(full_content.lock().unwrap().clone()))
+                Ok(LlmContent::Final(full_content.lock().expect("Failed to lock mutex").clone()))
             }));
 
             Ok(Box::new(Box::pin(final_stream)))

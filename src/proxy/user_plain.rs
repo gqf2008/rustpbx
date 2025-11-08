@@ -34,7 +34,7 @@ impl PlainTextBackend {
             }
         };
         let reader = io::BufReader::new(file);
-        let mut users = self.users.lock().unwrap();
+        let mut users = self.users.lock().expect("Failed to lock mutex");
         users.clear();
 
         for line in reader.lines() {
@@ -82,7 +82,7 @@ impl UserBackend for PlainTextBackend {
         return realm.is_empty();
     }
     async fn get_user(&self, username: &str, realm: Option<&str>) -> Result<Option<SipUser>> {
-        let mut user = match self.users.lock().unwrap().get(username) {
+        let mut user = match self.users.lock().expect("Failed to lock mutex").get(username) {
             Some(user) => user.clone(),
             None => return Ok(None),
         };
